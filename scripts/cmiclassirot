@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# This file is part of CMIrotMD
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# If you use this programm for scientific work, you must correctly reference it; see LICENSE file for details.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program. If not, see
+# <http://www.gnu.org/licenses/>.
+#
+# This file shall eventually serve as a driver for the calculation and postprocessing
+# for rotMD simulations
+
+
+import h5py
+import numpy as np
+import matplotlib.pyplot as plt
+import sys
+fname = sys.argv[1]
+rho = 19300.
+M = 3.79347234e-18
+L = 50.e-9
+R = 5.e-9
+V = np.pi*L*R**2
+M = V*rho
+KB = 1.38064852e-23
+I = np.array([ (0.083*M*L**2 + 0.25*M*R**2),   (0.083*M*L**2 + 0.25*M*R**2), 0.5*M*R**2])
+f = h5py.File(fname, 'r')
+
+time = f['time']
+cos = f['cos']
+E = f['pulse']
+Tt = f['pulseT']
+t = max(np.max(Tt), np.max(time))
+fig, (ax1, ax2) = plt.subplots(2)
+ax1.plot(time, cos)
+ax2.plot(Tt, E)
+ax1.set_xlabel('Time (s)')
+ax2.set_xlabel('Time (s)')
+ax1.set_ylabel('cos2')
+ax2.set_ylabel('I TW/cm2')
+ax1.set_xlim(0., t)
+ax2.set_xlim(0., t)
+plt.tight_layout()
+plt.show()
