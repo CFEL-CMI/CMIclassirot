@@ -16,20 +16,21 @@ For development work `pip install --editable .` might be a useful alternative.
 
 ## Documentation
 
-See the inline documentation in the code or see the manual generated using `tbd`
-or[online at rtd](https://classirot.readthedocs.org).
+See the online documentation of the latest release on
+[GitHub Pages](https://cfel-cmi.github.io/CMIclassirot).
 
-For a start, you can run the calculation inputs provided in `examples`:
+For a start, you can also inspect and run the calculation inputs provided in
+`examples`:
 ```
 cmiclassirot -o example.h5 <example>
 cmiclassirot-plot example.h5
 ```
 
-See also [Release Notes.md] and [Contributors.md].
+See also the [Release Notes](Release%20Notes.md) and the
+[Contributors file](Contributors.md).
 
-For registered developers, updated [documentation of development
-versions](https://cmi.pages.desy.de/internal/software/cmiclassirot) is available
-at DESY.
+Documentation of the development version is available on
+[DESY's gitlab pages](https://cmi.pages.desy.de/internal/software/cmiclassirot).
 
 
 ## Citation
