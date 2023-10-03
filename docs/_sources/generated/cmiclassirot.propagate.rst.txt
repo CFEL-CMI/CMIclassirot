@@ -1,0 +1,29 @@
+﻿cmiclassirot.propagate
+======================
+
+.. automodule:: cmiclassirot.propagate
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Propagate
+   
+   
+
+   
+   
+   
+
+
+

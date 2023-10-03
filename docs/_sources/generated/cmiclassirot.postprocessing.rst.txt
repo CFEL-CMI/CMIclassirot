@@ -1,0 +1,33 @@
+﻿cmiclassirot.postprocessing
+===========================
+
+.. automodule:: cmiclassirot.postprocessing
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Expectation
+      ProbabilityGraphics
+      Projection
+      cos2theta
+      cos2theta_2D
+   
+   
+
+   
+   
+   
+
+
+

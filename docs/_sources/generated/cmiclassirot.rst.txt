@@ -1,0 +1,23 @@
+﻿cmiclassirot
+============
+
+.. automodule:: cmiclassirot
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

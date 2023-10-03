@@ -16,6 +16,7 @@ git branch temp           # create a temporary branch "temp" at HEAD
 git checkout temp         # get on the new temporary branch
 git branch -M release     # rename "temp" to "stable"
 ```
+* Create docs for github Pages `sphinx-build doc docs`
 * Tag the final release as vx.y or vx.y.z or, possibly, create a vx.y branch for
   the release.
 * go back to develop `git checkout develop`

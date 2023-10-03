@@ -1,0 +1,29 @@
+﻿cmiclassirot.field
+==================
+
+.. automodule:: cmiclassirot.field
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Field
+   
+   
+
+   
+   
+   
+
+
+
