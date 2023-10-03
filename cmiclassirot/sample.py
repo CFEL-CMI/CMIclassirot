@@ -22,6 +22,8 @@ import pyquaternion as quat
 import scipy.constants
 import pandas as pd
 
+
+
 class Position(object):
     """Representation of a phase-space position of a molecule
 
@@ -43,6 +45,8 @@ class Position(object):
         self.velocity = velocity
         self.time = t
 
+
+
 class Molecule(object):
     """Object to be manipulated
 
@@ -61,8 +65,8 @@ class Molecule(object):
 
         .. code-block:: python
 
-            __init__(self, molecule, pos=None, temp=None)
-            __init__(self, I, P, angle=None, velocity=None, temp=None)
+            __init__(self, molecule, pos=None, T=None)
+            __init__(self, I, P, angle=None, velocity=None, T=None, t=0.)
 
         :param molecule: Use first version of constructor: copy the specified molecule and possibly
             update its phase-space position
@@ -70,31 +74,37 @@ class Molecule(object):
         :param pos: Determines position of new molecule
         * 'keep' or None specify to copy the phase-space position from the original Molecule
         * 'z' places the :class:`Molecule` along the laboratry :math:`z` axis with a angular
-            velocity of 0
+        velocity of 0
         * 'random' draws a random direction from a uniform angular distribution and an random
-           angular velocity according to a 3D Maxwell distribution at temperature `temp`
+        angular velocity according to a 3D Maxwell distribution at temperature `temp`
 
         :param I: principal moments of inertia: these are the three diagonal elements of the in the
-            inertial tensor in the principle axis of inertia frame (in SI units: kg * m**2)
+        inertial tensor in the principle axis of inertia frame (in SI units: kg * m**2)
 
         :param P: polarizabiity tensor in the inertial frame of the molecule (in SI units: ???)
-
-        :param T: Temperature of the thermal distribution from which to draw the initial momentum of
-            the particle; typically this should not be done here but in a (to be provided) `Source`
 
         :param angle: initial position, as a Quaternion, if not provided a random direction id
         choosen
 
         :param velocity: initial angular frequency, if not provided a random vector drawn from three
-            one-dimensional Maxell distribution for rotations about x, y, z is drawn
+        one-dimensional Maxell distribution for rotations about x, y, z is drawn
+
+        :param T: Temperature of the thermal distribution from which to draw the initial momentum of
+        the particle; typically this should not be done here but in a (to be provided) `Source`
+
+        :param t: Time at which the molecule is created
+
         """
         if isinstance(args[0], Molecule):
             # first variant of constructor -- get args
             assert(len(args)==1)
             mol = args[0]
+
             # get keyword args
             pos = kwargs.get('pos', None)
-            temp = kwargs.get('temp', 0)
+            T = kwargs.get('T', 0)
+            t = kwargs.get('t', 0)
+
             # construct object
             self._I = mol.I
             self._P = mol.P
@@ -103,12 +113,11 @@ class Molecule(object):
             elif pos == 'z':
                 self.pos = [Position()]
             elif pos == 'random':
-                self.pos = [self._thermal_position(temp)]
-            elif isinstance(pos, Position):
+                self.pos = [self._thermal_position(T, t)]
+            elif isinstance(pos, Position(t=t)):
                 self.pos = [pos]
             elif isinstance(pos, list):
                 self.pos = pos
-
         elif len(args) == 0 or isinstance(args[0], np.ndarray):
             # second variant of constructor
             if len(args) >= 1:
@@ -121,17 +130,21 @@ class Molecule(object):
                 self._P = kwargs.get('P')
             angle = kwargs.get('angle', None)
             velocity = kwargs.get('velocity', None)
-            temp = kwargs.get('temp', None)
+            T = kwargs.get('T', None)
+            t = kwargs.get('t', None)
             # set initila phase-space position
             self.pos = []
             pos = Position()
-            if temp is not None:
-                pos = self._thermal_position(temp)
+            if T is not None:
+                pos = self._thermal_position(T)
             # overwrite thermal phase-space position by explicitely specified values
             if angle is not None:
                 pos.angle = angle
             if velocity is not None:
                 pos.velocity = velocity
+            if t is not None:
+                pass
+                pos.time = t
             self.pos.append(pos)
         else:
             # something wrong!
@@ -151,20 +164,23 @@ class Molecule(object):
     def acceleration(self, field, position, factor=1):
         """Calculate the molecule's angular acceleration at its current position in a field
 
-        :param field: Field for which to calculate the acceleration
+        :param field: Field (amplitude, V/m) for which to calculate the acceleration
+
+
+        .. todo:: Refactor code to get rid of the IFs.
 
         """
         q = position.angle
         v = position.velocity
-        #I, P = self.rotate(q)  # uncomment this line incase you want to rotate 
+        #I, P = self.rotate(q)  # uncomment this line incase you want to rotate
                                 # the molecule not the field
         if self._I[2][2]<self._I[0][0]: # Particles initially oriented at the X-axis
             factor = 1.
-        else: # Particles initially oriented at the Z-axis
+        else: # Particles initially oriented along the Z-axis
             factor = -1.
         I, P = np.diagonal(self._I), self._P
         dipole = np.dot(P, field)
-        torque = factor * np.cross(dipole, field) 
+        torque = factor * np.cross(dipole, field)
         #a = np.dot(np.linalg.inv(I),   # if you decided to rotate the molecule
         #     (torque - np.cross(v, np.dot(I,v)))) #uncomment these lines and comment the next lines
         a = np.zeros(3)
@@ -178,12 +194,12 @@ class Molecule(object):
         return a
 
 
-    def _thermal_position(self, temp):
-        """Calculate a random phase-space position for the specified temperature
-           for generating random orientation of the particles, we rotate 
-           the molecules (initially on the Z-axis) around random axes on the x-y plane. 
-           The angle is calculated based on cosine destribution 
+    def _thermal_position(self, temp, t):
+        """Calculate a random phase-space position for the specified temperature for generating
+           random orientation of the particles, we rotate the molecules (initially on the Z-axis)
+           around random axes on the x-y plane. The angle is calculated based on cosine destribution
            angle = acos(random.uniform(-1,1))
+
         .. todo:: this can be optimized, but let's write it down explicitely first
 
         """
@@ -206,7 +222,8 @@ class Molecule(object):
         #q = quat.Quaternion(axis=[random.uniform(-1,1),
         #    random.uniform(-1,1), 0], angle=angle)
         q = quat.Quaternion.random()
-        return Position(q, velocity)
+        return Position(q, velocity, t)
+
 
     def rotate(self, q):
         #R = q.inverse.rotation_matrix
@@ -215,6 +232,8 @@ class Molecule(object):
         P = np.dot(R, np.dot(self._P, R.T))
         return I, P
 
+
+
 class Ensemble(object):
     """Source of randomly distributed Molecules
 
@@ -222,10 +241,16 @@ class Ensemble(object):
 
     """
 
-    def __init__(self, size, molecule, temperature=0):
+    def __init__(self, size, molecule, T=0., t=0.):
         """Generate an ensemble  of |Molecule|s
 
         :param size: number of molecules in ensemble
+
+        :param molecule:
+
+        :param temperature:
+
+        :param time: Time for the molecule to be create.
 
         .. todo:: add a constructor to create an ensemble from a data file
 
@@ -233,15 +258,18 @@ class Ensemble(object):
         self.size = size
         self.molecules = []
         for i in range(self.size):
-            self.molecules.append(Molecule(molecule, pos='random', temp=temperature))
+            self.molecules.append(Molecule(molecule, pos='random', T=T, t=t))
         self.index = self.size
-        self.temperature = temperature
+        self.temperature = T
+        self.time = t
         self.pulse = None
+
 
     @classmethod
     def FromFile(cls, name):
         cls._load(cls, name)
         return cls
+
 
     def __iter__(self):
         """Iterator method -- initialize"""
@@ -258,7 +286,7 @@ class Ensemble(object):
 
     def _load(self, filename):
         self.molecules=[]
-        with pd.HDFStore(filename) as store:      
+        with pd.HDFStore(filename) as store:
             tensors = store.get_storer('Molecule0').attrs.metadata
             self.size = len(store.keys())
             self.pulse = tensors['E']
@@ -271,17 +299,18 @@ class Ensemble(object):
                mol.pos = pos
                self.molecules.append(mol)
         self.index = self.size
-            
+
+
     def _save(self, filename):
-        df = pd.DataFrame(columns=['r', 'i', 'j', 'k', 
-             'omega_x', 'omega_y', 'omega_z', 'time'])
+        df = pd.DataFrame(columns=['r', 'i', 'j', 'k',
+                                   'omega_x', 'omega_y', 'omega_z', 'time'])
         store = pd.HDFStore(filename)
-        for i in range(len(self.molecules)): 
+        for i in range(len(self.molecules)):
             df = pd.DataFrame(columns=df.columns)
             for k, j in enumerate(self.molecules[i].pos):
                 df.loc[k] = list(np.concatenate((j.angle.elements, j.velocity)))+[j.time]
             store.put('Molecule'+str(i), df)
-        metadata = {'I':self.molecules[0].I,'P':self.molecules[0].P, 
+        metadata = {'I':self.molecules[0].I,'P':self.molecules[0].P,
                     'T':self.temperature, 'E': self.pulse}
         store.get_storer('Molecule0').attrs.metadata = metadata
         store.close()

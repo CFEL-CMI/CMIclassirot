@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# This file is part of the CMIclassirot classical-rotation alignment simulations
+#
+# Plotting of degree of alignment and laser pulse
+
+from cmiclassirot.field import Field
+from cmiclassirot.sample import Ensemble
+import matplotlib.pyplot as plt
+import numpy as np
+import sys
+
+fname = sys.argv[1]
+
+e = Ensemble.FromFile(fname)
+print("Number of Molecules:", len(e.molecules))
+
+doa = np.zeros(len(e.molecules[0].pos))
+E = e.pulse
+
+for i in e.molecules:
+    t=[]
+    pulse = []
+    for j in range(len(i.pos)):
+        try:
+            doa[j] += i.pos[j].angle.rotation_matrix[2][2]**2
+            t.append(i.pos[j].time)
+            pulse.append(E(i.pos[j].time))
+        except:
+            pass
+doa = doa/len(e.molecules)
+
+fig, ax = plt.subplots(2)
+ax[0].plot(np.array(t)*1e9, doa)
+ax[1].plot(np.array(t)*1e9, Field.amplitude2intensity(np.array(pulse)) / (1e12 * 1e4))
+plt.xlabel('time (ns)')
+ax[0].set_ylabel(r'$\left<\cos^2\theta\right>$')
+ax[1].set_ylabel('$E$ ($10^{12}$~W/cm$^2$)')
+plt.tight_layout()
+plt.show()

@@ -21,26 +21,56 @@ from scipy import interpolate
 from scipy.constants import c, epsilon_0
 from pyquaternion import Quaternion
 
+
+
 class Field(object):
     """Electric field class
 
-    For the beginning, this only implements a simple Gaussian pulse (in field strengths!) centered
-    at t=0 and along `Z`.
+    For the beginning, this only implements a simple Gaussian pulse (in amplitude) centered at t=0
+    and along `Z`.
+
+    Must specify one of `peak_amplitude`, `peak_intensity`, or `fieldname` to provide an
+    ac-electric-field envelope. In the formre two cases, one must also specify the width as `FWHM`
+    in amplitude or intensity, respectively, and the time of the `peak` of the laser pulse. In the
+    latter case, `file_content` needs to be specified.
+
+    :param peak_amplitude: Peak amplitude of a synthetic Gaussian laser pulse (V/m)
+
+    :param peak_intensity: Peak intensity of a synthetic Gaussian laser pulse (W/cm^2)
+
+    :param t_peak: Time of the laser-pulse peak (s)
+
+    :param FWHM: Full-width-at-half-maximum width of laser pulse in same units as filed
+    specification, i.e., :param`peak_amplitude` or :param:`peak_intensity` (s)
+
+    :param filename: Name of file to read numerically-specified field
+
+    :param file_content: Specify if file contains `amplitude` (V/m) or `intensity` (W/c^2) values.
+    This functionality is currently not implemented and the file is always expwected to contain
+    amplitudes. Please improve.
 
     .. todo:: Keep in mind that we want to be able to represent elliptically polaerized field by their envelope.
 
-    """
+    .. todo:: document class, constructor, and methods
 
-    def __init__(self, amplitude=1.e15, sigma=1.e-9, mean=5.e-9, 
-                 intensity=True, filename=None, dc=None):
-        self.amplitude = amplitude
-        self.sigma = sigma
-        self.Ez = np.array([0., 0., 1.])
-        self.from_file = None
-        self.intensity = intensity
-        self.mu = mean
-        self.dc = dc
-        if filename is not None:
+    .. todo:: Implement mixed field handling, here this is always providing (DC, AC) tuples on
+    __call__; maybe should be done via a derived class MixedField for performance reasons.
+
+    """
+    def __init__(self, peak_amplitude=None, peak_intensity=None, t_peak=0., FWHM=10.e-9,
+                 filename=None, file_content='intensity'):
+        # store field internally as an field apmplitude
+        assert (peak_amplitude or peak_intensity or filename) # at least one is not None
+        if peak_intensity:
+            self.peak_amplitude = Field.intensity2amplitude(peak_intensity)
+            self.sigma = FWHM / 2*np.sqrt(2*np.log(2))
+            self.t_peak = t_peak
+        elif peak_amplitude:
+            self.peak_amplitude = peak_amplitude
+            self.sigma = FWHM / 2*np.sqrt(2*np.log(2))
+            self.t_peak = t_peak
+        else:
+            self.peak_amplitude = None
             f = open(filename)
             E=[]
             t=[]
@@ -50,38 +80,34 @@ class Field(object):
                 E.append(float(token[1]))
             t = np.array(t)
             E = np.array(E)
-            self.from_file = interpolate.interp1d(t,E)
+            self.amplitude = interpolate.interp1d(t,E)
+        # initially the field is alog :math:`Z`
+        self.Ez = np.array([0., 0., 1.])
+
 
     def __call__(self, t):
         """Field at time t
 
-        :return: Field vector at time
-        """
-        if self.dc is not None:
-            if t > self.dc[0] and t < self.dc[1]:
-                return self.convert(self.dc[2])
-            else:
-                return 0
+        :return: Field amplitude vector at time :math:`t`
 
-        if self.from_file is None:
-            E = self.amplitude * np.exp(-0.5 * ((t-self.mu)/self.sigma)**2)
-            if self.intensity:
-                return self.convert(E)
-            else:
-                return E
+        """
+        if self.peak_amplitude:
+            return self.peak_amplitude * np.exp(-0.5 * ((t - self.t_peak)/self.sigma)**2)
         else:
-            try:
-                E = 1.e16*self.from_file(t)
-                if self.intensity:
-                    return self.convert(E)
-                else:
-                    return E
-            except:
-                return 0.
-    
-    def convert(self, I):
-        """ Converts intensity to electric field"""
-        return np.sqrt(2*I/(c * epsilon_0))
+            return self.amplitude(t)
+
+
+    @staticmethod
+    def intensity2amplitude(I):
+        """Converts intensity (in W/m**2) to electric field (in V/m)"""
+        return np.sqrt(2 * I / (c * epsilon_0))
+
+
+    @staticmethod
+    def amplitude2intensity(A):
+        """Converts electric field amplitude (in V/m) to intensity (in W/m**2)"""
+        return  c * epsilon_0 / 2 * A**2
+
 
     def rotate(self, quaternion=Quaternion()):
         """Rotate field

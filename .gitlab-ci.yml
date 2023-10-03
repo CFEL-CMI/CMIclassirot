@@ -1,0 +1,22 @@
+image: python:3.11
+
+test:
+  stage: test
+  script:
+  - pip install -U sphinx
+  - pip install .
+  - sphinx-build -b html doc public
+  rules:
+    - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+
+pages:
+  stage: deploy
+  script:
+  - pip install -U sphinx
+  - pip install .
+  - sphinx-build -b html doc public
+  artifacts:
+    paths:
+    - public
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH

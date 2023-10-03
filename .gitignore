@@ -1,3 +1,7 @@
 __pycache__
+build/
+doc/_build/
+doc/generated/
+public/
 *.egg-info
 *.h5

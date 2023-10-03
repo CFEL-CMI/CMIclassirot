@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# This file is part of the CMIclassirot classical-rotation alignment simulations
+
+
+
+import click
+import time
+
+from cmiclassirot.propagate import Propagate
+
+
+@click.command() # help='Filename of definiton of Ensemble and Field',
+@click.argument('inputfilename',  required=1)
+@click.option('-o', '--output', 'output', default='cmiclassirot.h5', show_default=True,
+              help='Write output to specified filename.')
+@click.help_option('-h', '--help')
+def main(inputfilename, output):
+    """CMIclassirot driver program: calculate the time-evolution of rigid rotors in electric fields
+
+    This program reads an imputfile defining an Ensemble of Molecules and a Field and performs the calculation.
+
+    Besides the options defined below, the program requires the filename of the inputfile as the only positional
+    argument. The input must define the following Python variables, which are used in the calculation:
+
+    :class:`Ensemble` :param:`ensemble` Definition of the initial ensemble of molecules
+
+    :class:`Field` :param:`field` Definition of the time-dependet electric field
+
+    :param timerange: 2-tuple of initial and final time of integration
+
+    :param dt_save: Tiemstep for saving the :class:`Molecule`-positions to file
+
+    @author: Jochen Küpper <jochen.kuepper@cfel.de>
+
+    """
+    # read specification of problem
+    with open(inputfilename, mode='r') as inputfile:
+        code = inputfile.read()
+    exec(code, globals())
+
+    # perform the computation
+    starttime = time.time()
+    print('Starting propagation of molecular dynamics')
+    p = Propagate(ensemble, field, timerange, dt_save)
+    print('  Propagation took', time.time()-starttime, 's')
+
+    # and save the results to the output file
+    starttime = time.time()
+    print('Saving data to file')
+    ensemble._save(output)
+    print('  Saving took', time.time()-starttime, 's')
+
+
+
+if __name__ == '__main__':
+    main()

@@ -17,38 +17,44 @@
 # see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy.integrate import ode
+import scipy.integrate
 import pyquaternion as quat
-from cmiclassirot.sample import Position
 import multiprocessing as mp
+
+from cmiclassirot.sample import Position
+
 
 class Propagate(object):
     """Propagate an Ensemble in time"""
 
-    def __init__(self, ensemble, field, dt=2.e-11, timerange=(-1e-9,1e-9)):
+    def __init__(self, ensemble, field, timerange=(0,1e-9), dt_save=None):
         """Initialize propagator
 
-        :param ensemble: Ensemble with all |Molecule|s to be propagated
+        :param ensemble: :class:`Ensemble` with all |Molecule|s to be propagated
 
-        :param field: Field in which to propagate. This is a univariate function that returns the
-        field strength (V/m) for any given time (s) in the `timerange`.
+        :param field: :class:`Field` in which to propagate. This is a univariate function that
+        returns the field strength (V/m) for any given time (s) in the :param:`timerange`.
 
-        :param timerange: Timerange over which to propagate, specified as tuple (t_init, t_final)
+        :param timerange: Time range over which to propagate, specified as tuple (t_init, t_final)
+
+        :param dt_save: Timesteps for saving the current phase-space positions of the
+        :param:`Molecule`s during propagation (default: 1 % of timerange period)
 
         """
         self.ensemble = ensemble
         self.field = field
-        self.dt = dt
+        if dt_save:
+            self.dt_save = dt_save
+        else:
+            self.dt_save = timerange[1] - timerange[0]
         self.t_range = timerange
         self.run()
 
-    def run(self):
-        """Propagate all |Molecule|s in the current |Field| over the current time range
 
-        .. todo:: Parallelize this (which is trivial)
-        """
+    def run(self):
+        """Propagate all |Molecule|s in the current |Field| over the current time range"""
         n_cpu = mp.cpu_count()
-        print("Running on:",n_cpu,"Processors")
+        print(f'Running on: {n_cpu} CPUs')
         self.ensemble.pulse = self.field
         pool = mp.Pool(n_cpu)
         results = pool.map(self._propagate, self.ensemble.molecules)
@@ -58,13 +64,15 @@ class Propagate(object):
              self.ensemble.molecules[i] = results[i]
         return self.ensemble
 
-    @classmethod
-    def molecule(cls, mol, field, dt, timerange):
-        cls.field = field
-        cls.dt = dt
-        cls.t_range = timerange
-        cls._propagate(cls, mol)
-        return mol
+
+    # @classmethod
+    # def molecule(cls, mol, field, timerange, dt_save):
+    #     cls.field = field
+    #     cls.dt_save = dt_save
+    #     cls.t_range = timerange
+    #     cls._propagate(cls, mol)
+    #     return mol
+
 
     def _propagate(self, molecule):
         """Propagate an individual molecule in the current field and over the current time range
@@ -75,7 +83,7 @@ class Propagate(object):
 
         .. todo:: Should use the modern approach, i.e., `scipy.integrate.solve_ivp`
 
-        
+
         # create a copy store a field direction (which can the rotated)
         field = self.field
         derivative = np.empty((7,))
@@ -92,18 +100,18 @@ class Propagate(object):
                                   args=(derivative, molecule, field))
         """
 
-        integral = ode( self._derivative )  # initial ode object
-        integral.set_integrator('dopri5', nsteps=10000)  # choose the integrator
-        #integral.set_integrator('lsoda')
+        # initialize ode object
+        integral = scipy.integrate.ode(self._derivative)
+        # choose the integrator
+        integral.set_integrator('dopri5', nsteps=10000)  # alternatively, use integral.set_integrator('lsoda')
         integral.set_initial_value(np.concatenate((molecule.pos[0].angle.elements,
-        molecule.pos[0].velocity))).set_f_params(molecule)
-        while integral.successful() and integral.t <= self.t_range[1]: # start the integration
-                integral.integrate(integral.t + self.dt) # advance the integrator in time
-                molecule.pos.append(
-                Position(quat.Quaternion(integral.y[:4])
-                , integral.y[4:7], t=integral.t))
-
+                                                   molecule.pos[0].velocity)), self.t_range[0]).set_f_params(molecule)
+        # integrate
+        while integral.successful() and integral.t <= self.t_range[1]:
+            integral.integrate(integral.t + self.dt_save)
+            molecule.pos.append(Position(quat.Quaternion(integral.y[:4]), integral.y[4:7], t=integral.t))
         return molecule
+
 
     def _derivative(self, t, dpos, molecule):
         """Determine the derivative of a Molecule at a specific time.
@@ -126,8 +134,8 @@ class Propagate(object):
 
         q = quat.Quaternion(dpos[0:4])
         omega = dpos[4:7]
-        #E = self.field(t) * self.field.rotate() # uncomment this if you want to rotate the molecule
-        E = self.field(t) * self.field.rotate(q.inverse) #incase rotating the field
+        # E = self.field(t) * self.field.rotate() # uncomment this if you want to rotate the molecule
+        E = self.field(t) * self.field.rotate(q.inverse) # rotating the field
         position = Position(q, omega)
         dw = molecule.acceleration(E, position)
         dq = q.derivative(omega).elements
